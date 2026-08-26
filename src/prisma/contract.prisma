@@ -1,0 +1,225 @@
+// use prisma-next
+
+enum Role {
+  ADMIN
+  PROCUREMENT_OFFICER
+}
+
+enum TenderStatus {
+  DRAFT
+  PUBLISHED
+  CLOSED
+  EVALUATION
+  AWARDED
+  CANCELLED
+}
+
+enum RequirementCategory {
+  FINANCIAL
+  TECHNICAL
+  EXPERIENCE
+  STATUTORY
+}
+
+enum BidStatus {
+  SUBMITTED
+  UNDER_REVIEW
+  COMPLIANT
+  NON_COMPLIANT
+  DISQUALIFIED
+}
+
+enum DocumentType {
+  PAN_CARD
+  GST_CERTIFICATE
+  ITR
+  EXPERIENCE_CERT
+  MSME_CERT
+  ISO_CERT
+  OTHER
+}
+
+enum VerificationSource {
+  PAN_DB
+  GST_PORTAL
+  MCA21
+  ITR_DB
+}
+
+enum ComplianceStatus {
+  COMPLIANT
+  NON_COMPLIANT
+  PARTIAL
+  MANUAL_REVIEW_REQUIRED
+}
+
+model User {
+  id           String     @id @default(uuid())
+  email        String     @unique
+  passwordHash String
+  name         String
+  role         Role
+  createdAt    TimestamptzString @default(now())
+  updatedAt    temporal.updatedAtString()
+
+  tenders      Tender[]
+  auditLogs    AuditLog[]
+
+  @@index([email])
+}
+
+model Tender {
+  id              String       @id @default(uuid())
+  tenderReference String       @unique
+  title           String
+  description     String?
+  status          TenderStatus
+  publishedById   String
+  createdAt       TimestamptzString @default(now())
+  updatedAt       temporal.updatedAtString()
+
+  publishedBy     User          @relation(fields: [publishedById], references: [id])
+  requirements    Requirement[]
+  bids            Bid[]
+
+  @@index([status])
+  @@index([tenderReference])
+}
+
+model Requirement {
+  id              String              @id @default(uuid())
+  tenderId        String
+  name            String
+  description     String?
+  category        RequirementCategory
+  isMandatory     Boolean             @default(true)
+  validationRules Json
+
+  tender            Tender             @relation(fields: [tenderId], references: [id], onDelete: Cascade)
+  complianceResults ComplianceResult[]
+
+  @@index([tenderId])
+}
+
+model Bidder {
+  id                  String    @id @default(uuid())
+  companyName         String
+  panNumber           String?   @unique
+  gstNumber           String?   @unique
+  dateOfIncorporation DateTime?
+  createdAt           TimestamptzString @default(now())
+  updatedAt           temporal.updatedAtString()
+
+  bids Bid[]
+
+  @@index([panNumber])
+  @@index([gstNumber])
+}
+
+model Bid {
+  id             String    @id @default(uuid())
+  tenderId       String
+  bidderId       String
+  status         BidStatus
+  submissionDate DateTime
+
+  tender            Tender             @relation(fields: [tenderId], references: [id], onDelete: Cascade)
+  bidder            Bidder             @relation(fields: [bidderId], references: [id], onDelete: Restrict)
+  documents         Document[]
+  complianceResults ComplianceResult[]
+
+  @@unique([tenderId, bidderId])
+  @@index([tenderId])
+  @@index([bidderId])
+  @@index([status])
+}
+
+model Document {
+  id           String       @id @default(uuid())
+  bidId        String
+  documentType DocumentType
+  fileUrl      String
+  uploadedAt   DateTime
+
+  bid             Bid              @relation(fields: [bidId], references: [id], onDelete: Cascade)
+  extractedFields ExtractedField[]
+
+  @@index([bidId])
+}
+
+model ExtractedField {
+  id              String  @id @default(uuid())
+  documentId      String
+  fieldName       String
+  extractedValue  String
+  confidenceScore Float
+  pageNumber      Int?
+  sourceText      String?
+  boundingBox     Json?
+
+  document            Document             @relation(fields: [documentId], references: [id], onDelete: Cascade)
+  verificationResults VerificationResult[]
+  complianceEvidences ComplianceEvidence[]
+
+  @@index([documentId])
+}
+
+model VerificationResult {
+  id               String             @id @default(uuid())
+  extractedFieldId String
+  source           VerificationSource
+  verifiedValue    String?
+  isMatch          Boolean
+  verificationDate DateTime
+  rawResponse      Json?
+
+  extractedField      ExtractedField       @relation(fields: [extractedFieldId], references: [id], onDelete: Cascade)
+  complianceEvidences ComplianceEvidence[]
+
+  @@index([extractedFieldId])
+}
+
+model ComplianceResult {
+  id              String           @id @default(uuid())
+  bidId           String
+  requirementId   String
+  status          ComplianceStatus
+  confidenceScore Float?
+  reason          String?
+  evaluatedAt     DateTime
+
+  bid                 Bid                  @relation(fields: [bidId], references: [id], onDelete: Cascade)
+  requirement         Requirement          @relation(fields: [requirementId], references: [id], onDelete: Cascade)
+  complianceEvidences ComplianceEvidence[]
+
+  @@unique([bidId, requirementId])
+  @@index([bidId])
+  @@index([requirementId])
+}
+
+model ComplianceEvidence {
+  id                   String  @id @default(uuid())
+  complianceResultId   String
+  extractedFieldId     String?
+  verificationResultId String?
+  evidenceNotes        String?
+
+  complianceResult   ComplianceResult    @relation(fields: [complianceResultId], references: [id], onDelete: Cascade)
+  extractedField     ExtractedField?     @relation(fields: [extractedFieldId], references: [id], onDelete: SetNull)
+  verificationResult VerificationResult? @relation(fields: [verificationResultId], references: [id], onDelete: SetNull)
+}
+
+model AuditLog {
+  id         String   @id @default(uuid())
+  userId     String?
+  action     String
+  entityType String
+  entityId   String
+  details    Json?
+  timestamp  DateTime
+
+  user User? @relation(fields: [userId], references: [id], onDelete: SetNull)
+
+  @@index([entityType, entityId])
+  @@index([timestamp])
+}
