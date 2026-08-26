@@ -1,3 +1,13 @@
+import { Temporal } from '@js-temporal/polyfill';
+
+const globalWithTemporal = globalThis as typeof globalThis & {
+  Temporal?: typeof Temporal;
+};
+
+if (!globalWithTemporal.Temporal) {
+  globalWithTemporal.Temporal = Temporal;
+}
+
 import 'dotenv/config';
 import postgres from '@prisma/orm-postgres/runtime';
 import type { Contract } from './contract.d';
