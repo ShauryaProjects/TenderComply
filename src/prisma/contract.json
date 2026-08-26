@@ -2286,7 +2286,14 @@
                   "id"
                 ]
               },
-              "uniques": []
+              "uniques": [
+                {
+                  "columns": [
+                    "tenderId",
+                    "name"
+                  ]
+                }
+              ]
             },
             "tender": {
               "checks": [
@@ -2646,7 +2653,7 @@
         "kind": "postgres-schema"
       }
     },
-    "storageHash": "ecaa961d9e6600403c67ddd9079a8d1a6d411036ccefdfd433d0fff0fc76939f"
+    "storageHash": "7456d3dae0d27725e05d3259a2ebf87242acecb4e3abfcd62bbe4a85b0cb03a4"
   },
   "execution": {
     "executionHash": "387866113752a8322b39d963a7c83a40da360084b1c570faf274bf40371d5927",

@@ -99,6 +99,7 @@ model Requirement {
   complianceResults ComplianceResult[]
 
   @@index([tenderId])
+  @@unique([tenderId, name])
 }
 
 model Bidder {
